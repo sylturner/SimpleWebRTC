@@ -11,8 +11,8 @@
     "webrtcsupport": "git://github.com/sylturner/webrtcsupport.git",
     "wildemitter": "1.x",
     "socket.io-client": "0.9.16",
-    "attachmediastream": "1.0.1",
-    "webrtc": "1.11.x",
+    "attachmediastream": "git://github.com/sylturner/attachMediaStream.git",
+    "webrtc": "git://github.com/sylturner/webrtc.js.git",
     "mockconsole": "0.0.1"
   },
   "devDependencies": {
