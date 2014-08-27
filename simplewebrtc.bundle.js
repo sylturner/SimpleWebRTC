@@ -434,7 +434,216 @@ SimpleWebRTC.prototype.sendFile = function () {
 
 module.exports = SimpleWebRTC;
 
-},{"attachmediastream":5,"mockconsole":7,"socket.io-client":6,"webrtc":2,"webrtcsupport":3,"wildemitter":4}],6:[function(require,module,exports){
+},{"attachmediastream":3,"mockconsole":7,"socket.io-client":6,"webrtc":2,"webrtcsupport":4,"wildemitter":5}],3:[function(require,module,exports){
+module.exports = function (stream, el, options) {
+  var URL = window.URL;
+  var opts = {
+    autoplay: true,
+    mirror: false,
+    muted: false
+  };
+  var element = el || document.createElement('video');
+  var item;
+
+  if (options) {
+    for (item in options) {
+      opts[item] = options[item];
+    }
+  }
+
+  if (opts.autoplay) element.autoplay = 'autoplay';
+  if (opts.muted) element.muted = true;
+  if (opts.mirror) {
+    ['', 'moz', 'webkit', 'o', 'ms'].forEach(function (prefix) {
+      var styleName = prefix ? prefix + 'Transform' : 'transform';
+      element.style[styleName] = 'scaleX(-1)';
+    });
+  }
+
+  var ua = window.navigator.userAgent.toLowerCase();
+  if(ua.indexOf('firefox') == -1 && ua.indexOf('chrome') == -1){
+    var elementId = element.id.length === 0 ? Math.random().toString(36).slice(2) : element.id;
+    if (!element.isTemWebRTCPlugin || !element.isTemWebRTCPlugin()) {
+      var obj = document.createElement('object');
+      obj.id = elementId;
+      obj.type = "application/x-temwebrtcplugin"
+      obj.innerHTML =
+        '<param name="pluginId" value="' + elementId + '" /> ' +
+        '<param name="pageId" value="' + window.TemPageId + '" /> ' +
+        '<param name="windowless" value="true" /> ' +
+        '<param name="streamId" value="' + stream.id + '" /> ';
+      return obj;
+    } else {
+      var children = element.children;
+      for (var i = 0; i !== children.length; ++i) {
+        if (children[i].name === 'streamId') {
+          children[i].value = stream.id;
+          break;
+        }
+      }
+      element.setStreamId(stream.id);
+      return element;
+    }
+  }
+  else {
+    // this first one should work most everywhere now
+    // but we have a few fallbacks just in case.
+    if (URL && URL.createObjectURL) {
+      element.src = URL.createObjectURL(stream);
+    } else if (element.srcObject) {
+      element.srcObject = stream;
+    } else if (element.mozSrcObject) {
+      element.mozSrcObject = stream;
+    } else {
+      return false;
+    }
+  }
+
+  return element;
+};
+
+},{}],5:[function(require,module,exports){
+/*
+WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
+on @visionmedia's Emitter from UI Kit.
+
+Why? I wanted it standalone.
+
+I also wanted support for wildcard emitters like this:
+
+emitter.on('*', function (eventName, other, event, payloads) {
+    
+});
+
+emitter.on('somenamespace*', function (eventName, payloads) {
+    
+});
+
+Please note that callbacks triggered by wildcard registered events also get 
+the event name as the first argument.
+*/
+module.exports = WildEmitter;
+
+function WildEmitter() {
+    this.callbacks = {};
+}
+
+// Listen on the given `event` with `fn`. Store a group name if present.
+WildEmitter.prototype.on = function (event, groupName, fn) {
+    var hasGroup = (arguments.length === 3),
+        group = hasGroup ? arguments[1] : undefined,
+        func = hasGroup ? arguments[2] : arguments[1];
+    func._groupName = group;
+    (this.callbacks[event] = this.callbacks[event] || []).push(func);
+    return this;
+};
+
+// Adds an `event` listener that will be invoked a single
+// time then automatically removed.
+WildEmitter.prototype.once = function (event, groupName, fn) {
+    var self = this,
+        hasGroup = (arguments.length === 3),
+        group = hasGroup ? arguments[1] : undefined,
+        func = hasGroup ? arguments[2] : arguments[1];
+    function on() {
+        self.off(event, on);
+        func.apply(this, arguments);
+    }
+    this.on(event, group, on);
+    return this;
+};
+
+// Unbinds an entire group
+WildEmitter.prototype.releaseGroup = function (groupName) {
+    var item, i, len, handlers;
+    for (item in this.callbacks) {
+        handlers = this.callbacks[item];
+        for (i = 0, len = handlers.length; i < len; i++) {
+            if (handlers[i]._groupName === groupName) {
+                //console.log('removing');
+                // remove it and shorten the array we're looping through
+                handlers.splice(i, 1);
+                i--;
+                len--;
+            }
+        }
+    }
+    return this;
+};
+
+// Remove the given callback for `event` or all
+// registered callbacks.
+WildEmitter.prototype.off = function (event, fn) {
+    var callbacks = this.callbacks[event],
+        i;
+
+    if (!callbacks) return this;
+
+    // remove all handlers
+    if (arguments.length === 1) {
+        delete this.callbacks[event];
+        return this;
+    }
+
+    // remove specific handler
+    i = callbacks.indexOf(fn);
+    callbacks.splice(i, 1);
+    return this;
+};
+
+/// Emit `event` with the given args.
+// also calls any `*` handlers
+WildEmitter.prototype.emit = function (event) {
+    var args = [].slice.call(arguments, 1),
+        callbacks = this.callbacks[event],
+        specialCallbacks = this.getWildcardCallbacks(event),
+        i,
+        len,
+        item,
+        listeners;
+
+    if (callbacks) {
+        listeners = callbacks.slice();
+        for (i = 0, len = listeners.length; i < len; ++i) {
+            if (listeners[i]) {
+                listeners[i].apply(this, args);
+            } else {
+                break;
+            }
+        }
+    }
+
+    if (specialCallbacks) {
+        len = specialCallbacks.length;
+        listeners = specialCallbacks.slice();
+        for (i = 0, len = listeners.length; i < len; ++i) {
+            if (listeners[i]) {
+                listeners[i].apply(this, [event].concat(args));
+            } else {
+                break;
+            }
+        }
+    }
+
+    return this;
+};
+
+// Helper for for finding special wildcard event handlers that match the event
+WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
+    var item,
+        split,
+        result = [];
+
+    for (item in this.callbacks) {
+        split = item.split('*');
+        if (item === '*' || (split.length === 2 && eventName.slice(0, split[0].length) === split[0])) {
+            result = result.concat(this.callbacks[item]);
+        }
+    }
+    return result;
+};
+
+},{}],6:[function(require,module,exports){
 /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
 
 var io = ('undefined' === typeof module ? {} : module.exports);
@@ -4309,147 +4518,6 @@ if (typeof define === "function" && define.amd) {
 }
 })();
 },{}],4:[function(require,module,exports){
-/*
-WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
-on @visionmedia's Emitter from UI Kit.
-
-Why? I wanted it standalone.
-
-I also wanted support for wildcard emitters like this:
-
-emitter.on('*', function (eventName, other, event, payloads) {
-    
-});
-
-emitter.on('somenamespace*', function (eventName, payloads) {
-    
-});
-
-Please note that callbacks triggered by wildcard registered events also get 
-the event name as the first argument.
-*/
-module.exports = WildEmitter;
-
-function WildEmitter() {
-    this.callbacks = {};
-}
-
-// Listen on the given `event` with `fn`. Store a group name if present.
-WildEmitter.prototype.on = function (event, groupName, fn) {
-    var hasGroup = (arguments.length === 3),
-        group = hasGroup ? arguments[1] : undefined,
-        func = hasGroup ? arguments[2] : arguments[1];
-    func._groupName = group;
-    (this.callbacks[event] = this.callbacks[event] || []).push(func);
-    return this;
-};
-
-// Adds an `event` listener that will be invoked a single
-// time then automatically removed.
-WildEmitter.prototype.once = function (event, groupName, fn) {
-    var self = this,
-        hasGroup = (arguments.length === 3),
-        group = hasGroup ? arguments[1] : undefined,
-        func = hasGroup ? arguments[2] : arguments[1];
-    function on() {
-        self.off(event, on);
-        func.apply(this, arguments);
-    }
-    this.on(event, group, on);
-    return this;
-};
-
-// Unbinds an entire group
-WildEmitter.prototype.releaseGroup = function (groupName) {
-    var item, i, len, handlers;
-    for (item in this.callbacks) {
-        handlers = this.callbacks[item];
-        for (i = 0, len = handlers.length; i < len; i++) {
-            if (handlers[i]._groupName === groupName) {
-                //console.log('removing');
-                // remove it and shorten the array we're looping through
-                handlers.splice(i, 1);
-                i--;
-                len--;
-            }
-        }
-    }
-    return this;
-};
-
-// Remove the given callback for `event` or all
-// registered callbacks.
-WildEmitter.prototype.off = function (event, fn) {
-    var callbacks = this.callbacks[event],
-        i;
-
-    if (!callbacks) return this;
-
-    // remove all handlers
-    if (arguments.length === 1) {
-        delete this.callbacks[event];
-        return this;
-    }
-
-    // remove specific handler
-    i = callbacks.indexOf(fn);
-    callbacks.splice(i, 1);
-    return this;
-};
-
-/// Emit `event` with the given args.
-// also calls any `*` handlers
-WildEmitter.prototype.emit = function (event) {
-    var args = [].slice.call(arguments, 1),
-        callbacks = this.callbacks[event],
-        specialCallbacks = this.getWildcardCallbacks(event),
-        i,
-        len,
-        item,
-        listeners;
-
-    if (callbacks) {
-        listeners = callbacks.slice();
-        for (i = 0, len = listeners.length; i < len; ++i) {
-            if (listeners[i]) {
-                listeners[i].apply(this, args);
-            } else {
-                break;
-            }
-        }
-    }
-
-    if (specialCallbacks) {
-        len = specialCallbacks.length;
-        listeners = specialCallbacks.slice();
-        for (i = 0, len = listeners.length; i < len; ++i) {
-            if (listeners[i]) {
-                listeners[i].apply(this, [event].concat(args));
-            } else {
-                break;
-            }
-        }
-    }
-
-    return this;
-};
-
-// Helper for for finding special wildcard event handlers that match the event
-WildEmitter.prototype.getWildcardCallbacks = function (eventName) {
-    var item,
-        split,
-        result = [];
-
-    for (item in this.callbacks) {
-        split = item.split('*');
-        if (item === '*' || (split.length === 2 && eventName.slice(0, split[0].length) === split[0])) {
-            result = result.concat(this.callbacks[item]);
-        }
-    }
-    return result;
-};
-
-},{}],3:[function(require,module,exports){
 // created by @HenrikJoreteg
 var prefix  = '';
 var isChrome = false;
@@ -4679,7 +4747,7 @@ if(needsPlugin) {
       prefix: prefix,
       support: true,
       dataChannel: true,
-      webAudio: true,
+      webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
       mediaStream: true,
       screenSharing: false,
       AudioContext: AudioContext,
@@ -4712,102 +4780,6 @@ else {
       IceCandidate: IceCandidate
   };
 }
-
-},{}],5:[function(require,module,exports){
-module.exports = function (stream, el, options) {
-  // simple browser sniff
-  var ua = window.navigator.userAgent.toLowerCase();
-  if(ua.indexOf('firefox') !== -1 || ua.indexOf('chrome') !== -1){
-    var URL = window.URL;
-    var opts = {
-        autoplay: true,
-        mirror: false,
-        muted: false
-    };
-    var element = el || document.createElement('video');
-    var item;
-
-    if (options) {
-        for (item in options) {
-            opts[item] = options[item];
-        }
-    }
-
-    if (opts.autoplay) element.autoplay = 'autoplay';
-    if (opts.muted) element.muted = true;
-    if (opts.mirror) {
-        ['', 'moz', 'webkit', 'o', 'ms'].forEach(function (prefix) {
-            var styleName = prefix ? prefix + 'Transform' : 'transform';
-            element.style[styleName] = 'scaleX(-1)';
-        });
-    }
-
-    // this first one should work most everywhere now
-    // but we have a few fallbacks just in case.
-    if (URL && URL.createObjectURL) {
-        element.src = URL.createObjectURL(stream);
-    } else if (element.srcObject) {
-        element.srcObject = stream;
-    } else if (element.mozSrcObject) {
-        element.mozSrcObject = stream;
-    } else {
-        return false;
-    }
-
-    return element;
-  }
-  else {
-    // make this work with the Temasys plugin for IE and Safari
-    var element = el;
-    stream.enableSoundTracks(true);
-    if (element.nodeName.toLowerCase() !== 'audio') {
-      var elementId = element.id.length === 0 ? Math.random().toString(36).slice(2) : element.id;
-      if (!element.isTemWebRTCPlugin || !element.isTemWebRTCPlugin()) {
-        var frag = document.createDocumentFragment();
-        var temp = document.createElement('div');
-        var classHTML = element.className ? 'class="' + element.className + '" ' :  '';
-        temp.innerHTML = '<object id="' + elementId + '" ' + 
-          classHTML + 'type="application/x-temwebrtcplugin">' + 
-          '<param name="pluginId" value="' + elementId + '" /> ' + 
-          '<param name="pageId" value="' + window.TemPageId + '" /> ' + 
-          '<param name="windowless" value="true" /> ' + 
-          '<param name="streamId" value="' + stream.id + '" /> ' + 
-          '</object>';
-        while (temp.firstChild) {
-          frag.appendChild(temp.firstChild);
-        }
-
-        var rectObject = element.getBoundingClientRect();
-        element.parentNode.insertBefore(frag, element);
-        frag = document.getElementById(elementId);
-        frag.width = rectObject.width + 'px'; 
-        frag.height = rectObject.height + 'px';
-        element.parentNode.removeChild(element);
-
-      } else {
-        var children = element.children;
-        for (var i = 0; i !== children.length; ++i) {
-          if (children[i].name === 'streamId') {
-            children[i].value = stream.id;
-            break;
-          }
-        }
-        element.setStreamId(stream.id);
-      }
-
-      var newElement = document.getElementById(elementId);
-      newElement.onclick = element.onclick ? element.onclick : function(arg) {};
-      newElement._TemOnClick = function(id) {
-        var arg = {srcElement: document.getElementById(id)};
-        newElement.onclick(arg);
-      };
-      return newElement;
-    } else { // is audio element
-      // The sound was enabled, there is nothing to do here
-      return element;
-    }
-  }
-};
 
 },{}],7:[function(require,module,exports){
 var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
@@ -5312,7 +5284,7 @@ WebRTC.prototype.sendDirectlyToAll = function (channel, message, payload) {
 
 module.exports = WebRTC;
 
-},{"./peer":10,"localmedia":11,"mockconsole":7,"util":8,"webrtcsupport":3,"wildemitter":4}],12:[function(require,module,exports){
+},{"./peer":10,"localmedia":11,"mockconsole":7,"util":8,"webrtcsupport":4,"wildemitter":5}],12:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -5774,7 +5746,7 @@ Peer.prototype.handleDataChannelAdded = function (channel) {
 
 module.exports = Peer;
 
-},{"rtcpeerconnection":13,"util":8,"webrtcsupport":3,"wildemitter":4}],14:[function(require,module,exports){
+},{"rtcpeerconnection":13,"util":8,"webrtcsupport":4,"wildemitter":5}],14:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (window.navigator.getUserMedia ||
             window.navigator.webkitGetUserMedia ||
@@ -6116,7 +6088,7 @@ Object.defineProperty(LocalMedia.prototype, 'localScreen', {
 
 module.exports = LocalMedia;
 
-},{"getscreenmedia":16,"getusermedia":14,"hark":15,"mediastream-gain":17,"mockconsole":7,"util":8,"webrtcsupport":3,"wildemitter":4}],18:[function(require,module,exports){
+},{"getscreenmedia":16,"getusermedia":14,"hark":15,"mediastream-gain":17,"mockconsole":7,"util":8,"webrtcsupport":4,"wildemitter":5}],18:[function(require,module,exports){
 //     Underscore.js 1.7.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -8158,7 +8130,7 @@ PeerConnection.prototype.getStats = function (cb) {
 
 module.exports = PeerConnection;
 
-},{"sdp-jingle-json":20,"traceablepeerconnection":23,"underscore":18,"util":8,"webrtcsupport":3,"wildemitter":4}],21:[function(require,module,exports){
+},{"sdp-jingle-json":20,"traceablepeerconnection":23,"underscore":18,"util":8,"webrtcsupport":4,"wildemitter":5}],21:[function(require,module,exports){
 var senders = {
     'initiator': 'sendonly',
     'responder': 'recvonly',
@@ -8420,13 +8392,14 @@ module.exports = function(stream, options) {
     sourceNode = audioContext.createMediaElementSource(stream);
     if (typeof play === 'undefined') play = true;
     threshold = threshold || -50;
-  } else {
+  } else if(audioContext.createMediaStreamSource) {
     //WebRTC Stream
     sourceNode = audioContext.createMediaStreamSource(stream);
     threshold = threshold || -50;
   }
-
-  sourceNode.connect(analyser);
+  if(sourceNode) {
+    sourceNode.connect(analyser);
+  }
   if (play) analyser.connect(audioContext.destination);
 
   harker.speaking = false;
@@ -8497,7 +8470,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":4}],17:[function(require,module,exports){
+},{"wildemitter":5}],17:[function(require,module,exports){
 var support = require('webrtcsupport');
 
 
@@ -8544,7 +8517,7 @@ GainController.prototype.on = function () {
 
 module.exports = GainController;
 
-},{"webrtcsupport":3}],22:[function(require,module,exports){
+},{"webrtcsupport":4}],22:[function(require,module,exports){
 var parsers = require('./parsers');
 var idCounter = Math.random();
 
@@ -9202,6 +9175,6 @@ TraceablePeerConnection.prototype.getStats = function (callback, errback) {
 
 module.exports = TraceablePeerConnection;
 
-},{"util":8,"webrtcsupport":3,"wildemitter":4}]},{},[1])(1)
+},{"util":8,"webrtcsupport":4,"wildemitter":5}]},{},[1])(1)
 });
 ;
