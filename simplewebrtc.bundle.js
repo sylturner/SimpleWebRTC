@@ -434,7 +434,19 @@ SimpleWebRTC.prototype.sendFile = function () {
 
 module.exports = SimpleWebRTC;
 
-},{"attachmediastream":6,"mockconsole":5,"socket.io-client":7,"webrtc":2,"webrtcsupport":4,"wildemitter":3}],6:[function(require,module,exports){
+},{"attachmediastream":4,"mockconsole":6,"socket.io-client":7,"webrtc":2,"webrtcsupport":3,"wildemitter":5}],6:[function(require,module,exports){
+var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
+var l = methods.length;
+var fn = function () {};
+var mockconsole = {};
+
+while (l--) {
+    mockconsole[methods[l]] = fn;
+}
+
+module.exports = mockconsole;
+
+},{}],4:[function(require,module,exports){
 module.exports = function (stream, el, options) {
   var URL = window.URL;
   var opts = {
@@ -502,19 +514,52 @@ module.exports = function (stream, el, options) {
   return element;
 };
 
-},{}],5:[function(require,module,exports){
-var methods = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(",");
-var l = methods.length;
-var fn = function () {};
-var mockconsole = {};
+},{}],3:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix  = '';
+var isChrome = false;
+var isFirefox = false;
+var needsPlugin = false;
+var ua = window.navigator.userAgent.toLowerCase();
 
-while (l--) {
-    mockconsole[methods[l]] = fn;
+// basic sniffing
+if (ua.indexOf('firefox') !== -1) {
+    prefix = 'moz';
+    isFirefox = true;
+} else if (ua.indexOf('chrome') !== -1) {
+    prefix = 'webkit';
+    isChrome = true;
+} else {
+  // non webrtc browser that needs the Temasys plugin
+  prefix = 'other';
+  needsPlugin = true;
 }
 
-module.exports = mockconsole;
 
-},{}],3:[function(require,module,exports){
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
+};
+
+},{}],5:[function(require,module,exports){
 /*
 WildEmitter.js is a slim little event emitter by @henrikjoreteg largely based 
 on @visionmedia's Emitter from UI Kit.
@@ -4529,7 +4574,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],4:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 // created by @HenrikJoreteg
 var prefix  = '';
 var isChrome = false;
@@ -4545,255 +4590,180 @@ if (ua.indexOf('firefox') !== -1) {
     prefix = 'webkit';
     isChrome = true;
 } else {
-  // non webrtc browser that needs the plugin
+  // non webrtc browser that needs the Temasys plugin
   prefix = 'other';
   needsPlugin = true;
 }
 
-// Temasys plugin functions
-///
-/// Unique identifier of each opened page
-///
-var TemPageId = Math.random().toString(36).slice(2);
-window.TemPageId = TemPageId;
 
-///
-/// Private function that will be called once the browser 
-/// is WebRTC Ready. This can be because the plugin natively
-/// WebRTC ready, or because the plugin was successfuly 
-/// initialised
-/// This callback will launch the function WebRTCReadyCb if
-/// it is defined. Override this function if you need to do
-/// anything "as soon as the browser is ready"
-///
-var TemStaticWasInit = 1;
-TemPrivateWebRTCReadyCb = function() {
-  // webRTC ready Cb, should only be called once. 
-  // Need to prevent Chrome + plugin form calling WebRTCReadyCb twice
-  if (TemStaticWasInit === 1) {
-    if (typeof WebRTCReadyCb === 'function') {
-      WebRTCReadyCb();
-    }
-  }
-  TemStaticWasInit++;
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
 };
 
-///
-/// DO NOT OVERLOAD THIS FUNCTION
-/// we define a function to access the plugin API
-/// call plugin() whenever you need to access the plugin API
-///
-function plugin0() {
-  return document.getElementById('_Tem_plugin0');
-}
-plugin = plugin0;
+},{}],2:[function(require,module,exports){
+var util = require('util');
+var webrtc = require('webrtcsupport');
+var WildEmitter = require('wildemitter');
+var mockconsole = require('mockconsole');
+var localMedia = require('localmedia');
+var Peer = require('./peer');
 
-if(needsPlugin) {
-  // Non WebRTC ready browser /////////////////////////////////////////////////////
-  ///
-  /// This part of the adatper is plugin specific
-  ///
 
-  // Note: IE is detected as Safari...
-  //console.log('This appears to be either Safari or IE');
-  webrtcDetectedBrowser = 'Safari';
+function WebRTC(opts) {
+    var self = this;
+    var options = opts || {};
+    var config = this.config = {
+            debug: false,
+            // makes the entire PC config overridable
+            peerConnectionConfig: {
+                iceServers: [{"url": "stun:stun.l.google.com:19302"}]
+            },
+            peerConnectionConstraints: {
+                optional: [
+                    {DtlsSrtpKeyAgreement: true}
+                ]
+            },
+            receiveMedia: {
+                mandatory: {
+                    OfferToReceiveAudio: true,
+                    OfferToReceiveVideo: true
+                }
+            },
+            enableDataChannels: true
+        };
+    var item;
 
-  ///
-  /// These booleans tell you on which browser you are working
-  ///
-  // TODO: move this up and use it for implementation choice
-  var isOpera = !!window.opera || navigator.userAgent.indexOf(' OPR/') >= 0;
-    // Opera 8.0+ (UA detection to detect Blink/v8-powered Opera)
-  var isFirefox = typeof InstallTrigger !== 'undefined';   // Firefox 1.0+
-  var isSafari = Object.prototype.toString.call(window.HTMLElement).indexOf('Constructor') > 0;
-    // At least Safari 3+: "[object HTMLElementConstructor]"
-  var isChrome = !!window.chrome && !isOpera;              // Chrome 1+
-  var isIE = /*@cc_on!@*/false || !!document.documentMode; // At least IE6
+    // expose screensharing check
+    this.screenSharingSupport = webrtc.screenSharing;
 
-  ///
-  /// This function detects whether or not a plugin is installed
-  /// Com name : the company name,
-  /// plugName : the plugin name
-  /// installedCb : callback if the plugin is detected (no argument)
-  /// notInstalledCb : callback if the plugin is not detected (no argument)
-  ///
-  isPluginInstalled = function(comName, plugName, installedCb, notInstalledCb) {
-    if (isChrome || isSafari || isFirefox) { // Not IE (firefox, for example)
-      var pluginArray = navigator.plugins;
-      for (var i = 0; i < pluginArray.length; i++) {
-        if (pluginArray[i].name.indexOf(plugName) >= 0) {
-          installedCb();
-          return;
+    // We also allow a 'logger' option. It can be any object that implements
+    // log, warn, and error methods.
+    // We log nothing by default, following "the rule of silence":
+    // http://www.linfo.org/rule_of_silence.html
+    this.logger = function () {
+        // we assume that if you're in debug mode and you didn't
+        // pass in a logger, you actually want to log as much as
+        // possible.
+        if (opts.debug) {
+            return opts.logger || console;
+        } else {
+        // or we'll use your logger which should have its own logic
+        // for output. Or we'll return the no-op.
+            return opts.logger || mockconsole;
         }
-      }
-      notInstalledCb(); 
-    } else if (isIE) { // We're running IE
-      try {
-        var tmp = new ActiveXObject(comName+'.'+plugName);
-      } catch(e) {
-        notInstalledCb();
-        return;
-      }
-      installedCb();
-    } else {
-      // Unsupported
-      return;
-    }
-  };
+    }();
 
-  // defines webrtc's JS interface according to the plugin's implementation
-  defineWebRTCInterface = function() { 
-    // ==== UTIL FUNCTIONS ===
-    function isDefined(variable) {
-      return variable !== null && variable !== undefined;
+    // set options
+    for (item in options) {
+        this.config[item] = options[item];
     }
 
-    injectPlugin = function() {
-      var frag = document.createDocumentFragment();
-      var temp = document.createElement('div');
-      temp.innerHTML = '<object id="_Tem_plugin0" type="application/x-temwebrtcplugin" ' + 
-                                            'width="1" height="1">' + 
-        '<param name="pluginId" value="_Tem_plugin0" /> ' + 
-        '<param name="windowless" value="false" /> ' + 
-        '<param name="pageId" value="' + TemPageId + '" /> ' + 
-        '<param name="onload" value="TemPrivateWebRTCReadyCb" />' + 
-        // '<param name="forceGetAllCams" value="True" />' +  // uncomment to be able to use virtual cams
-      '</object>';
-      while (temp.firstChild) {
-        frag.appendChild(temp.firstChild);
-      }
-      $(document).ready(function() {document.body.appendChild(frag);});
-    };
-    injectPlugin();
+    // check for support
+    if (!webrtc.support) {
+        this.logger.error('Your browser doesn\'t seem to support WebRTC');
+    }
 
-    // END OF UTIL FUNCTIONS
+    // where we'll store our peer connections
+    this.peers = [];
 
-    // === WEBRTC INTERFACE ===
-    createIceServer = function(url, username, password) {
-      var iceServer = null;
-      var url_parts = url.split(':');
-      if (url_parts[0].indexOf('stun') === 0) {
-        // Create iceServer with stun url.
-        iceServer = { 'url': url, 'hasCredentials': false};
-      } else if (url_parts[0].indexOf('turn') === 0) {
-        iceServer = { 'url': url,
-        'hasCredentials': true,
-        'credential': password,
-        'username': username };
-      }
-      return iceServer;
-    };
+    // call localMedia constructor
+    localMedia.call(this, this.config);
 
-    createIceServers = function(urls, username, password) {  
-      var iceServers = [];
-      for (var i = 0; i < urls.length; ++i) {
-        iceServers.push(createIceServer(urls[i], username, password));
-      }
-      return iceServers;
-    };
-
-    // The RTCSessionDescription object.
-    RTCSessionDescription = function(info) {
-      return plugin().ConstructSessionDescription(info.type, info.sdp);
-    };
-
-    // PEER CONNECTION
-    RTCPeerConnection = function(servers, constraints) {
-      var iceServers = null;
-      if (servers) {
-        iceServers = servers.iceServers;
-        for (var i = 0; i < iceServers.length; i++) {
-          if (iceServers[i].urls && !iceServers[i].url) {
-            iceServers[i].url = iceServers[i].urls;
-          }
-          iceServers[i].hasCredentials = isDefined(iceServers[i].username) &&
-                                         isDefined(iceServers[i].credential);
+    this.on('speaking', function () {
+        if (!self.hardMuted) {
+          self.sendDirectlyToAll("simplewebrtc", {type: 'speaking'}, {});
         }
-      }
-      var mandatory = (constraints && constraints.mandatory) ? constraints.mandatory : null;
-      var optional = (constraints && constraints.optional) ? constraints.optional : null;
-      return plugin().PeerConnection(TemPageId, iceServers, mandatory, optional);
-    };
+    });
+    this.on('stoppedSpeaking', function () {
+        if (!self.hardMuted) {
+          self.sendDirectlyToAll("simplewebrtc", {type: 'stoppedSpeaking'}, {});
+        }
+    });
+    this.on('volumeChange', function (volume, treshold) {
+        if (!self.hardMuted) {
+          self.sendDirectlyToAll("simplewebrtc", {type: 'volume', volume: volume}, {});
+        }
+    });
 
-    MediaStreamTrack = {};
-    MediaStreamTrack.getSources = function(callback) {
-      return plugin().GetSources(callback);
-    };
-
-    getUserMedia = function(constraints, successCallback, failureCallback) {
-      if (!constraints.audio) {
-        constraints.audio = false;
-      }
-
-      plugin().getUserMedia(constraints, successCallback, failureCallback);
-    };
-    navigator.getUserMedia = getUserMedia;
-
-    RTCIceCandidate = function(candidate) {
-      if (!candidate.sdpMid) {
-        candidate.sdpMid = '';
-      }
-      return plugin().ConstructIceCandidate(candidate.sdpMid, 
-                                          candidate.sdpMLineIndex, 
-                                          candidate.candidate);
-    };
-    // END OF WEBRTC INTERFACE 
-  };
-
-
-  pluginNeededButNotInstalledCb = function() {
-    // This function will be called if the plugin is needed 
-    // (browser different from Chrome or Firefox), 
-    // but the plugin is not installed
-    // Override it according to your application logic.
-
-    alert('Your browser is not webrtc ready and Temasys plugin is not installed');
-  };
-
-  // Try to detect the plugin and act accordingly
-  isPluginInstalled('Tem', 'TemWebRTCPlugin', defineWebRTCInterface, pluginNeededButNotInstalledCb);
-
-  var AudioContext = window.webkitAudioContext || window.AudioContext;
-
-  module.exports = {
-      prefix: prefix,
-      support: true,
-      dataChannel: true,
-      webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
-      mediaStream: true,
-      screenSharing: false,
-      AudioContext: AudioContext,
-      PeerConnection: RTCPeerConnection,
-      SessionDescription: RTCSessionDescription,
-      IceCandidate: RTCIceCandidate
-  };
-}
-else {
-  var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
-  var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
-  var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
-  var MediaStream = window.webkitMediaStream || window.MediaStream;
-  var screenSharing = window.location.protocol === 'https:' && 
-      ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
-      (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
-  var AudioContext = window.webkitAudioContext || window.AudioContext;
-
-  // export support flags and constructors.prototype && PC
-  module.exports = {
-      support: !!PC,
-      dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
-      prefix: prefix,
-      webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
-      mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack),
-      screenSharing: !!screenSharing,
-      AudioContext: AudioContext,
-      PeerConnection: PC,
-      SessionDescription: SessionDescription,
-      IceCandidate: IceCandidate
-  };
+    // log events in debug mode
+    if (this.config.debug) {
+        this.on('*', function (event, val1, val2) {
+            var logger;
+            // if you didn't pass in a logger and you explicitly turning on debug
+            // we're just going to assume you're wanting log output with console
+            if (self.config.logger === mockconsole) {
+                logger = console;
+            } else {
+                logger = self.logger;
+            }
+            logger.log('event:', event, val1, val2);
+        });
+    }
 }
 
-},{}],8:[function(require,module,exports){
+util.inherits(WebRTC, localMedia);
+
+WebRTC.prototype.createPeer = function (opts) {
+    var peer;
+    opts.parent = this;
+    peer = new Peer(opts);
+    this.peers.push(peer);
+    return peer;
+};
+
+// removes peers
+WebRTC.prototype.removePeers = function (id, type) {
+    this.getPeers(id, type).forEach(function (peer) {
+        peer.end();
+    });
+};
+
+// fetches all Peer objects by session id and/or type
+WebRTC.prototype.getPeers = function (sessionId, type) {
+    return this.peers.filter(function (peer) {
+        return (!sessionId || peer.id === sessionId) && (!type || peer.type === type);
+    });
+};
+
+// sends message to all
+WebRTC.prototype.sendToAll = function (message, payload) {
+    this.peers.forEach(function (peer) {
+        peer.send(message, payload);
+    });
+};
+
+// sends message to all using a datachannel
+// only sends to anyone who has an open datachannel
+WebRTC.prototype.sendDirectlyToAll = function (channel, message, payload) {
+    this.peers.forEach(function (peer) {
+        if (peer.enableDataChannels) {
+            peer.sendDirectly(channel, message, payload);
+        }
+    });
+};
+
+module.exports = WebRTC;
+
+},{"./peer":10,"localmedia":11,"mockconsole":6,"util":9,"webrtcsupport":8,"wildemitter":5}],9:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -5140,151 +5110,226 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":9}],2:[function(require,module,exports){
+},{"events":12}],10:[function(require,module,exports){
 var util = require('util');
 var webrtc = require('webrtcsupport');
+var PeerConnection = require('rtcpeerconnection');
 var WildEmitter = require('wildemitter');
-var mockconsole = require('mockconsole');
-var localMedia = require('localmedia');
-var Peer = require('./peer');
 
 
-function WebRTC(opts) {
+function Peer(options) {
     var self = this;
-    var options = opts || {};
-    var config = this.config = {
-            debug: false,
-            // makes the entire PC config overridable
-            peerConnectionConfig: {
-                iceServers: [{"url": "stun:stun.l.google.com:19302"}]
-            },
-            peerConnectionConstraints: {
-                optional: [
-                    {DtlsSrtpKeyAgreement: true}
-                ]
-            },
-            receiveMedia: {
-                mandatory: {
-                    OfferToReceiveAudio: true,
-                    OfferToReceiveVideo: true
-                }
-            },
-            enableDataChannels: true
-        };
-    var item;
 
-    // expose screensharing check
-    this.screenSharingSupport = webrtc.screenSharing;
-
-    // We also allow a 'logger' option. It can be any object that implements
-    // log, warn, and error methods.
-    // We log nothing by default, following "the rule of silence":
-    // http://www.linfo.org/rule_of_silence.html
-    this.logger = function () {
-        // we assume that if you're in debug mode and you didn't
-        // pass in a logger, you actually want to log as much as
-        // possible.
-        if (opts.debug) {
-            return opts.logger || console;
-        } else {
-        // or we'll use your logger which should have its own logic
-        // for output. Or we'll return the no-op.
-            return opts.logger || mockconsole;
-        }
-    }();
-
-    // set options
-    for (item in options) {
-        this.config[item] = options[item];
-    }
-
-    // check for support
-    if (!webrtc.support) {
-        this.logger.error('Your browser doesn\'t seem to support WebRTC');
-    }
-
-    // where we'll store our peer connections
-    this.peers = [];
-
-    // call localMedia constructor
-    localMedia.call(this, this.config);
-
-    this.on('speaking', function () {
-        if (!self.hardMuted) {
-          self.sendDirectlyToAll("simplewebrtc", {type: 'speaking'}, {});
-        }
-    });
-    this.on('stoppedSpeaking', function () {
-        if (!self.hardMuted) {
-          self.sendDirectlyToAll("simplewebrtc", {type: 'stoppedSpeaking'}, {});
-        }
-    });
-    this.on('volumeChange', function (volume, treshold) {
-        if (!self.hardMuted) {
-          self.sendDirectlyToAll("simplewebrtc", {type: 'volume', volume: volume}, {});
-        }
-    });
-
-    // log events in debug mode
-    if (this.config.debug) {
-        this.on('*', function (event, val1, val2) {
-            var logger;
-            // if you didn't pass in a logger and you explicitly turning on debug
-            // we're just going to assume you're wanting log output with console
-            if (self.config.logger === mockconsole) {
-                logger = console;
-            } else {
-                logger = self.logger;
+    this.id = options.id;
+    this.parent = options.parent;
+    this.type = options.type || 'video';
+    this.oneway = options.oneway || false;
+    this.sharemyscreen = options.sharemyscreen || false;
+    this.browserPrefix = options.prefix;
+    this.stream = options.stream;
+    this.enableDataChannels = options.enableDataChannels === undefined ? this.parent.config.enableDataChannels : options.enableDataChannels;
+    this.receiveMedia = options.receiveMedia || this.parent.config.receiveMedia;
+    this.channels = {};
+    // Create an RTCPeerConnection via the polyfill
+    this.pc = new PeerConnection(this.parent.config.peerConnectionConfig, this.parent.config.peerConnectionConstraints);
+    this.pc.on('ice', this.onIceCandidate.bind(this));
+    this.pc.on('addStream', this.handleRemoteStreamAdded.bind(this));
+    this.pc.on('addChannel', this.handleDataChannelAdded.bind(this));
+    this.pc.on('removeStream', this.handleStreamRemoved.bind(this));
+    // Just fire negotiation needed events for now
+    // When browser re-negotiation handling seems to work
+    // we can use this as the trigger for starting the offer/answer process
+    // automatically. We'll just leave it be for now while this stabalizes.
+    this.pc.on('negotiationNeeded', this.emit.bind(this, 'negotiationNeeded'));
+    this.pc.on('iceConnectionStateChange', this.emit.bind(this, 'iceConnectionStateChange'));
+    this.pc.on('iceConnectionStateChange', function () {
+        switch (self.pc.iceConnectionState) {
+        case 'failed':
+            // currently, in chrome only the initiator goes to failed
+            // so we need to signal this to the peer
+            if (self.pc.pc.peerconnection.localDescription.type === 'offer') {
+                self.parent.emit('iceFailed', self);
+                self.send('connectivityError');
             }
-            logger.log('event:', event, val1, val2);
+            break;
+        }
+    });
+    this.pc.on('signalingStateChange', this.emit.bind(this, 'signalingStateChange'));
+    this.logger = this.parent.logger;
+
+    // handle screensharing/broadcast mode
+    if (options.type === 'screen') {
+        if (this.parent.localScreen && this.sharemyscreen) {
+            this.logger.log('adding local screen stream to peer connection');
+            this.pc.addStream(this.parent.localScreen);
+            this.broadcaster = options.broadcaster;
+        }
+    } else {
+        this.parent.localStreams.forEach(function (stream) {
+            self.pc.addStream(stream);
         });
     }
+
+    // call emitter constructor
+    WildEmitter.call(this);
+
+    // proxy events to parent
+    this.on('*', function () {
+        self.parent.emit.apply(self.parent, arguments);
+    });
 }
 
-util.inherits(WebRTC, localMedia);
+util.inherits(Peer, WildEmitter);
 
-WebRTC.prototype.createPeer = function (opts) {
-    var peer;
-    opts.parent = this;
-    peer = new Peer(opts);
-    this.peers.push(peer);
-    return peer;
+Peer.prototype.handleMessage = function (message) {
+    var self = this;
+
+    this.logger.log('getting', message.type, message);
+
+    if (message.prefix) this.browserPrefix = message.prefix;
+
+    if (message.type === 'offer') {
+        this.pc.handleOffer(message.payload, function (err) {
+            if (err) {
+                return;
+            }
+            // auto-accept
+            self.pc.answer(self.receiveMedia, function (err, sessionDescription) {
+                self.send('answer', sessionDescription);
+            });
+        });
+    } else if (message.type === 'answer') {
+        this.pc.handleAnswer(message.payload);
+    } else if (message.type === 'candidate') {
+        this.pc.processIce(message.payload);
+    } else if (message.type === 'connectivityError') {
+        this.parent.emit('connectivityError', self);
+    } else if (message.type === 'mute') {
+        this.parent.emit('mute', {id: message.from, name: message.payload.name});
+    } else if (message.type === 'unmute') {
+        this.parent.emit('unmute', {id: message.from, name: message.payload.name});
+    }
 };
 
-// removes peers
-WebRTC.prototype.removePeers = function (id, type) {
-    this.getPeers(id, type).forEach(function (peer) {
-        peer.end();
+// send via signalling channel
+Peer.prototype.send = function (messageType, payload) {
+  // the Temasys plugin sends a weird candidate object, istead of this simple JSON object
+  // so we'll construct it here. Non-plugin browsers are essentially already doing this
+  if(messageType === 'candidate'){
+    payload = {candidate:
+                     {candidate: payload.candidate.candidate,
+                      sdpMLineIndex: payload.candidate.sdpMLineIndex,
+                      sdpMid: payload.candidate.sdpMid}};
+   }
+    var message = {
+        to: this.id,
+        broadcaster: this.broadcaster,
+        roomType: this.type,
+        type: messageType,
+        payload: payload,
+        prefix: webrtc.prefix
+    };
+    this.logger.log('sending', messageType, message);
+    this.parent.emit('message', message);
+};
+
+// send via data channel
+// returns true when message was sent and false if channel is not open
+Peer.prototype.sendDirectly = function (channel, messageType, payload) {
+    var message = {
+        type: messageType,
+        payload: payload
+    };
+    this.logger.log('sending via datachannel', channel, messageType, message);
+    var dc = this.getDataChannel(channel);
+    if (dc.readyState != 'open') return false;
+    dc.send(JSON.stringify(message));
+    return true;
+};
+
+// Internal method registering handlers for a data channel and emitting events on the peer
+Peer.prototype._observeDataChannel = function (channel) {
+    var self = this;
+    channel.onclose = this.emit.bind(this, 'channelClose', channel);
+    channel.onerror = this.emit.bind(this, 'channelError', channel);
+    channel.onmessage = function (event) {
+        self.emit('channelMessage', self, channel.label, JSON.parse(event.data), channel, event);
+    };
+    channel.onopen = this.emit.bind(this, 'channelOpen', channel);
+};
+
+// Fetch or create a data channel by the given name
+Peer.prototype.getDataChannel = function (name, opts) {
+    if (!webrtc.dataChannel) return this.emit('error', new Error('createDataChannel not supported'));
+    var channel = this.channels[name];
+    opts || (opts = {});
+    if (channel) return channel;
+    // if we don't have one by this label, create it
+    channel = this.channels[name] = this.pc.createDataChannel(name, opts);
+    this._observeDataChannel(channel);
+    return channel;
+};
+
+Peer.prototype.onIceCandidate = function (candidate) {
+    if (this.closed) return;
+    if (candidate) {
+        this.send('candidate', candidate);
+    } else {
+        this.logger.log("End of candidates.");
+    }
+};
+
+Peer.prototype.start = function () {
+    var self = this;
+
+    // well, the webrtc api requires that we either
+    // a) create a datachannel a priori
+    // b) do a renegotiation later to add the SCTP m-line
+    // Let's do (a) first...
+    if (this.enableDataChannels) {
+        this.getDataChannel('simplewebrtc');
+    }
+
+    this.pc.offer(this.receiveMedia, function (err, sessionDescription) {
+        self.send('offer', sessionDescription);
     });
 };
 
-// fetches all Peer objects by session id and/or type
-WebRTC.prototype.getPeers = function (sessionId, type) {
-    return this.peers.filter(function (peer) {
-        return (!sessionId || peer.id === sessionId) && (!type || peer.type === type);
-    });
+Peer.prototype.end = function () {
+    if (this.closed) return;
+    this.pc.close();
+    this.handleStreamRemoved();
 };
 
-// sends message to all
-WebRTC.prototype.sendToAll = function (message, payload) {
-    this.peers.forEach(function (peer) {
-        peer.send(message, payload);
-    });
+Peer.prototype.handleRemoteStreamAdded = function (event) {
+    var self = this;
+    if (this.stream) {
+        this.logger.warn('Already have a remote stream');
+    } else {
+        this.stream = event.stream;
+        // FIXME: addEventListener('ended', ...) would be nicer
+        // but does not work in firefox 
+        this.stream.onended = function () {
+            self.end();
+        };
+        this.parent.emit('peerStreamAdded', this);
+    }
 };
 
-// sends message to all using a datachannel
-// only sends to anyone who has an open datachannel
-WebRTC.prototype.sendDirectlyToAll = function (channel, message, payload) {
-    this.peers.forEach(function (peer) {
-        if (peer.enableDataChannels) {
-            peer.sendDirectly(channel, message, payload);
-        }
-    });
+Peer.prototype.handleStreamRemoved = function () {
+    this.parent.peers.splice(this.parent.peers.indexOf(this), 1);
+    this.closed = true;
+    this.parent.emit('peerStreamRemoved', this);
 };
 
-module.exports = WebRTC;
+Peer.prototype.handleDataChannelAdded = function (channel) {
+    this.channels[channel.label] = channel;
+    this._observeDataChannel(channel);
+};
 
-},{"./peer":10,"localmedia":11,"mockconsole":5,"util":8,"webrtcsupport":4,"wildemitter":3}],12:[function(require,module,exports){
+module.exports = Peer;
+
+},{"rtcpeerconnection":13,"util":9,"webrtcsupport":8,"wildemitter":5}],14:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -5339,7 +5384,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],9:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -5535,218 +5580,52 @@ EventEmitter.listenerCount = function(emitter, type) {
   return ret;
 };
 
-},{"__browserify_process":12}],10:[function(require,module,exports){
-var util = require('util');
-var webrtc = require('webrtcsupport');
-var PeerConnection = require('rtcpeerconnection');
-var WildEmitter = require('wildemitter');
+},{"__browserify_process":14}],15:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix  = '';
+var isChrome = false;
+var isFirefox = false;
+var needsPlugin = false;
+var ua = window.navigator.userAgent.toLowerCase();
 
-
-function Peer(options) {
-    var self = this;
-
-    this.id = options.id;
-    this.parent = options.parent;
-    this.type = options.type || 'video';
-    this.oneway = options.oneway || false;
-    this.sharemyscreen = options.sharemyscreen || false;
-    this.browserPrefix = options.prefix;
-    this.stream = options.stream;
-    this.enableDataChannels = options.enableDataChannels === undefined ? this.parent.config.enableDataChannels : options.enableDataChannels;
-    this.receiveMedia = options.receiveMedia || this.parent.config.receiveMedia;
-    this.channels = {};
-    // Create an RTCPeerConnection via the polyfill
-    this.pc = new PeerConnection(this.parent.config.peerConnectionConfig, this.parent.config.peerConnectionConstraints);
-    this.pc.on('ice', this.onIceCandidate.bind(this));
-    this.pc.on('addStream', this.handleRemoteStreamAdded.bind(this));
-    this.pc.on('addChannel', this.handleDataChannelAdded.bind(this));
-    this.pc.on('removeStream', this.handleStreamRemoved.bind(this));
-    // Just fire negotiation needed events for now
-    // When browser re-negotiation handling seems to work
-    // we can use this as the trigger for starting the offer/answer process
-    // automatically. We'll just leave it be for now while this stabalizes.
-    this.pc.on('negotiationNeeded', this.emit.bind(this, 'negotiationNeeded'));
-    this.pc.on('iceConnectionStateChange', this.emit.bind(this, 'iceConnectionStateChange'));
-    this.pc.on('iceConnectionStateChange', function () {
-        switch (self.pc.iceConnectionState) {
-        case 'failed':
-            // currently, in chrome only the initiator goes to failed
-            // so we need to signal this to the peer
-            if (self.pc.pc.peerconnection.localDescription.type === 'offer') {
-                self.parent.emit('iceFailed', self);
-                self.send('connectivityError');
-            }
-            break;
-        }
-    });
-    this.pc.on('signalingStateChange', this.emit.bind(this, 'signalingStateChange'));
-    this.logger = this.parent.logger;
-
-    // handle screensharing/broadcast mode
-    if (options.type === 'screen') {
-        if (this.parent.localScreen && this.sharemyscreen) {
-            this.logger.log('adding local screen stream to peer connection');
-            this.pc.addStream(this.parent.localScreen);
-            this.broadcaster = options.broadcaster;
-        }
-    } else {
-        this.parent.localStreams.forEach(function (stream) {
-            self.pc.addStream(stream);
-        });
-    }
-
-    // call emitter constructor
-    WildEmitter.call(this);
-
-    // proxy events to parent
-    this.on('*', function () {
-        self.parent.emit.apply(self.parent, arguments);
-    });
+// basic sniffing
+if (ua.indexOf('firefox') !== -1) {
+    prefix = 'moz';
+    isFirefox = true;
+} else if (ua.indexOf('chrome') !== -1) {
+    prefix = 'webkit';
+    isChrome = true;
+} else {
+  // non webrtc browser that needs the Temasys plugin
+  prefix = 'other';
+  needsPlugin = true;
 }
 
-util.inherits(Peer, WildEmitter);
 
-Peer.prototype.handleMessage = function (message) {
-    var self = this;
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
 
-    this.logger.log('getting', message.type, message);
-
-    if (message.prefix) this.browserPrefix = message.prefix;
-
-    if (message.type === 'offer') {
-        this.pc.handleOffer(message.payload, function (err) {
-            if (err) {
-                return;
-            }
-            // auto-accept
-            self.pc.answer(self.receiveMedia, function (err, sessionDescription) {
-                self.send('answer', sessionDescription);
-            });
-        });
-    } else if (message.type === 'answer') {
-        this.pc.handleAnswer(message.payload);
-    } else if (message.type === 'candidate') {
-        this.pc.processIce(message.payload);
-    } else if (message.type === 'connectivityError') {
-        this.parent.emit('connectivityError', self);
-    } else if (message.type === 'mute') {
-        this.parent.emit('mute', {id: message.from, name: message.payload.name});
-    } else if (message.type === 'unmute') {
-        this.parent.emit('unmute', {id: message.from, name: message.payload.name});
-    }
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
 };
 
-// send via signalling channel
-Peer.prototype.send = function (messageType, payload) {
-    var message = {
-        to: this.id,
-        broadcaster: this.broadcaster,
-        roomType: this.type,
-        type: messageType,
-        payload: payload,
-        prefix: webrtc.prefix
-    };
-    this.logger.log('sending', messageType, message);
-    this.parent.emit('message', message);
-};
-
-// send via data channel
-// returns true when message was sent and false if channel is not open
-Peer.prototype.sendDirectly = function (channel, messageType, payload) {
-    var message = {
-        type: messageType,
-        payload: payload
-    };
-    this.logger.log('sending via datachannel', channel, messageType, message);
-    var dc = this.getDataChannel(channel);
-    if (dc.readyState != 'open') return false;
-    dc.send(JSON.stringify(message));
-    return true;
-};
-
-// Internal method registering handlers for a data channel and emitting events on the peer
-Peer.prototype._observeDataChannel = function (channel) {
-    var self = this;
-    channel.onclose = this.emit.bind(this, 'channelClose', channel);
-    channel.onerror = this.emit.bind(this, 'channelError', channel);
-    channel.onmessage = function (event) {
-        self.emit('channelMessage', self, channel.label, JSON.parse(event.data), channel, event);
-    };
-    channel.onopen = this.emit.bind(this, 'channelOpen', channel);
-};
-
-// Fetch or create a data channel by the given name
-Peer.prototype.getDataChannel = function (name, opts) {
-    if (!webrtc.dataChannel) return this.emit('error', new Error('createDataChannel not supported'));
-    var channel = this.channels[name];
-    opts || (opts = {});
-    if (channel) return channel;
-    // if we don't have one by this label, create it
-    channel = this.channels[name] = this.pc.createDataChannel(name, opts);
-    this._observeDataChannel(channel);
-    return channel;
-};
-
-Peer.prototype.onIceCandidate = function (candidate) {
-    if (this.closed) return;
-    if (candidate) {
-        this.send('candidate', candidate);
-    } else {
-        this.logger.log("End of candidates.");
-    }
-};
-
-Peer.prototype.start = function () {
-    var self = this;
-
-    // well, the webrtc api requires that we either
-    // a) create a datachannel a priori
-    // b) do a renegotiation later to add the SCTP m-line
-    // Let's do (a) first...
-    if (this.enableDataChannels) {
-        this.getDataChannel('simplewebrtc');
-    }
-
-    this.pc.offer(this.receiveMedia, function (err, sessionDescription) {
-        self.send('offer', sessionDescription);
-    });
-};
-
-Peer.prototype.end = function () {
-    if (this.closed) return;
-    this.pc.close();
-    this.handleStreamRemoved();
-};
-
-Peer.prototype.handleRemoteStreamAdded = function (event) {
-    var self = this;
-    if (this.stream) {
-        this.logger.warn('Already have a remote stream');
-    } else {
-        this.stream = event.stream;
-        // FIXME: addEventListener('ended', ...) would be nicer
-        // but does not work in firefox 
-        this.stream.onended = function () {
-            self.end();
-        };
-        this.parent.emit('peerStreamAdded', this);
-    }
-};
-
-Peer.prototype.handleStreamRemoved = function () {
-    this.parent.peers.splice(this.parent.peers.indexOf(this), 1);
-    this.closed = true;
-    this.parent.emit('peerStreamRemoved', this);
-};
-
-Peer.prototype.handleDataChannelAdded = function (channel) {
-    this.channels[channel.label] = channel;
-    this._observeDataChannel(channel);
-};
-
-module.exports = Peer;
-
-},{"rtcpeerconnection":13,"util":8,"webrtcsupport":4,"wildemitter":3}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 // getUserMedia helper by @HenrikJoreteg
 var func = (window.navigator.getUserMedia ||
             window.navigator.webkitGetUserMedia ||
@@ -6088,7 +5967,52 @@ Object.defineProperty(LocalMedia.prototype, 'localScreen', {
 
 module.exports = LocalMedia;
 
-},{"getscreenmedia":16,"getusermedia":14,"hark":15,"mediastream-gain":17,"mockconsole":5,"util":8,"webrtcsupport":4,"wildemitter":3}],18:[function(require,module,exports){
+},{"getscreenmedia":17,"getusermedia":16,"hark":18,"mediastream-gain":19,"mockconsole":6,"util":9,"webrtcsupport":15,"wildemitter":5}],20:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix  = '';
+var isChrome = false;
+var isFirefox = false;
+var needsPlugin = false;
+var ua = window.navigator.userAgent.toLowerCase();
+
+// basic sniffing
+if (ua.indexOf('firefox') !== -1) {
+    prefix = 'moz';
+    isFirefox = true;
+} else if (ua.indexOf('chrome') !== -1) {
+    prefix = 'webkit';
+    isChrome = true;
+} else {
+  // non webrtc browser that needs the Temasys plugin
+  prefix = 'other';
+  needsPlugin = true;
+}
+
+
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
+};
+
+},{}],21:[function(require,module,exports){
 //     Underscore.js 1.7.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -7505,7 +7429,54 @@ module.exports = LocalMedia;
   }
 }.call(this));
 
-},{}],16:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
+var support = require('webrtcsupport');
+
+
+function GainController(stream) {
+    this.support = support.webAudio && support.mediaStream;
+
+    // set our starting value
+    this.gain = 1;
+
+    if (this.support) {
+        var context = this.context = new support.AudioContext();
+        this.microphone = context.createMediaStreamSource(stream);
+        this.gainFilter = context.createGain();
+        this.destination = context.createMediaStreamDestination();
+        this.outputStream = this.destination.stream;
+        this.microphone.connect(this.gainFilter);
+        this.gainFilter.connect(this.destination);
+        stream.addTrack(this.outputStream.getAudioTracks()[0]);
+        stream.removeTrack(stream.getAudioTracks()[0]);
+    }
+    this.stream = stream;
+}
+
+// setting
+GainController.prototype.setGain = function (val) {
+    // check for support
+    if (!this.support) return;
+    this.gainFilter.gain.value = val;
+    this.gain = val;
+};
+
+GainController.prototype.getGain = function () {
+    return this.gain;
+};
+
+GainController.prototype.off = function () {
+    return this.setGain(0);
+};
+
+GainController.prototype.on = function () {
+    this.setGain(1);
+};
+
+
+module.exports = GainController;
+
+},{"webrtcsupport":22}],17:[function(require,module,exports){
 // getScreenMedia helper by @HenrikJoreteg
 var getUserMedia = require('getusermedia');
 
@@ -7621,71 +7592,7 @@ window.addEventListener('message', function (event) {
     }
 });
 
-},{"getusermedia":19}],19:[function(require,module,exports){
-// getUserMedia helper by @HenrikJoreteg
-var func = (window.navigator.getUserMedia ||
-            window.navigator.webkitGetUserMedia ||
-            window.navigator.mozGetUserMedia ||
-            window.navigator.msGetUserMedia);
-
-
-module.exports = function (constraints, cb) {
-    var options;
-    var haveOpts = arguments.length === 2;
-    var defaultOpts = {video: true, audio: true};
-    var error;
-    var denied = 'PermissionDeniedError';
-    var notSatified = 'ConstraintNotSatisfiedError';
-
-    // make constraints optional
-    if (!haveOpts) {
-        cb = constraints;
-        constraints = defaultOpts;
-    }
-
-    // treat lack of browser support like an error
-    if (!func) {
-        // throw proper error per spec
-        error = new Error('MediaStreamError');
-        error.name = 'NotSupportedError';
-        return cb(error);
-    }
-
-    func.call(window.navigator, constraints, function (stream) {
-        cb(null, stream);
-    }, function (err) {
-        var error;
-        // coerce into an error object since FF gives us a string
-        // there are only two valid names according to the spec
-        // we coerce all non-denied to "constraint not satisfied".
-        if (typeof err === 'string') {
-            error = new Error('MediaStreamError');
-            if (err === denied) {
-                error.name = denied;
-            } else {
-                error.name = notSatified;
-            }
-        } else {
-            // if we get an error object make sure '.name' property is set
-            // according to spec: http://dev.w3.org/2011/webrtc/editor/getusermedia.html#navigatorusermediaerror-and-navigatorusermediaerrorcallback
-            error = err;
-            if (!error.name) {
-                // this is likely chrome which
-                // sets a property called "ERROR_DENIED" on the error object
-                // if so we make sure to set a name
-                if (error[denied]) {
-                    err.name = denied;
-                } else {
-                    err.name = notSatified;
-                }
-            }
-        }
-
-        cb(error);
-    });
-};
-
-},{}],13:[function(require,module,exports){
+},{"getusermedia":23}],13:[function(require,module,exports){
 var _ = require('underscore');
 var util = require('util');
 var webrtc = require('webrtcsupport');
@@ -8117,7 +8024,116 @@ PeerConnection.prototype.getStats = function (cb) {
 
 module.exports = PeerConnection;
 
-},{"sdp-jingle-json":21,"traceablepeerconnection":20,"underscore":18,"util":8,"webrtcsupport":4,"wildemitter":3}],21:[function(require,module,exports){
+},{"sdp-jingle-json":24,"traceablepeerconnection":25,"underscore":21,"util":9,"webrtcsupport":20,"wildemitter":5}],22:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix  = '';
+var isChrome = false;
+var isFirefox = false;
+var needsPlugin = false;
+var ua = window.navigator.userAgent.toLowerCase();
+
+// basic sniffing
+if (ua.indexOf('firefox') !== -1) {
+    prefix = 'moz';
+    isFirefox = true;
+} else if (ua.indexOf('chrome') !== -1) {
+    prefix = 'webkit';
+    isChrome = true;
+} else {
+  // non webrtc browser that needs the Temasys plugin
+  prefix = 'other';
+  needsPlugin = true;
+}
+
+
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
+};
+
+},{}],23:[function(require,module,exports){
+// getUserMedia helper by @HenrikJoreteg
+var func = (window.navigator.getUserMedia ||
+            window.navigator.webkitGetUserMedia ||
+            window.navigator.mozGetUserMedia ||
+            window.navigator.msGetUserMedia);
+
+
+module.exports = function (constraints, cb) {
+    var options;
+    var haveOpts = arguments.length === 2;
+    var defaultOpts = {video: true, audio: true};
+    var error;
+    var denied = 'PermissionDeniedError';
+    var notSatified = 'ConstraintNotSatisfiedError';
+
+    // make constraints optional
+    if (!haveOpts) {
+        cb = constraints;
+        constraints = defaultOpts;
+    }
+
+    // treat lack of browser support like an error
+    if (!func) {
+        // throw proper error per spec
+        error = new Error('MediaStreamError');
+        error.name = 'NotSupportedError';
+        return cb(error);
+    }
+
+    func.call(window.navigator, constraints, function (stream) {
+        cb(null, stream);
+    }, function (err) {
+        var error;
+        // coerce into an error object since FF gives us a string
+        // there are only two valid names according to the spec
+        // we coerce all non-denied to "constraint not satisfied".
+        if (typeof err === 'string') {
+            error = new Error('MediaStreamError');
+            if (err === denied) {
+                error.name = denied;
+            } else {
+                error.name = notSatified;
+            }
+        } else {
+            // if we get an error object make sure '.name' property is set
+            // according to spec: http://dev.w3.org/2011/webrtc/editor/getusermedia.html#navigatorusermediaerror-and-navigatorusermediaerrorcallback
+            error = err;
+            if (!error.name) {
+                // this is likely chrome which
+                // sets a property called "ERROR_DENIED" on the error object
+                // if so we make sure to set a name
+                if (error[denied]) {
+                    err.name = denied;
+                } else {
+                    err.name = notSatified;
+                }
+            }
+        }
+
+        cb(error);
+    });
+};
+
+},{}],24:[function(require,module,exports){
 var tosdp = require('./lib/tosdp');
 var tojson = require('./lib/tojson');
 
@@ -8130,7 +8146,7 @@ exports.toSessionJSON = tojson.toSessionJSON;
 exports.toMediaJSON = tojson.toMediaJSON;
 exports.toCandidateJSON = tojson.toCandidateJSON;
 
-},{"./lib/tojson":23,"./lib/tosdp":22}],22:[function(require,module,exports){
+},{"./lib/tojson":26,"./lib/tosdp":27}],27:[function(require,module,exports){
 var senders = {
     'initiator': 'sendonly',
     'responder': 'recvonly',
@@ -8199,6 +8215,9 @@ exports.toMediaSDP = function (content) {
     sdp.push('m=' + mline.join(' '));
 
     sdp.push('c=IN IP4 0.0.0.0');
+    if (desc.bandwidth) {
+        sdp.push('b=' + desc.bandwidth.type + ':' + desc.bandwidth.bandwidth);
+    }
     if (desc.descType == 'rtp') {
         sdp.push('a=rtcp:1 IN IP4 0.0.0.0');
     }
@@ -8249,9 +8268,11 @@ exports.toMediaSDP = function (content) {
 
         if (payload.parameters && payload.parameters.length) {
             var fmtp = ['a=fmtp:' + payload.id];
+            var parameters = [];
             payload.parameters.forEach(function (param) {
-                fmtp.push((param.key ? param.key + '=' : '') + param.value);
+                parameters.push((param.key ? param.key + '=' : '') + param.value);
             });
+            fmtp.push(parameters.join(';'));
             sdp.push(fmtp.join(' '));
         }
 
@@ -8339,7 +8360,7 @@ exports.toCandidateSDP = function (candidate) {
     return 'a=candidate:' + sdp.join(' ');
 };
 
-},{}],15:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 var WildEmitter = require('wildemitter');
 
 function getMaxVolume (analyser, fftBins) {
@@ -8470,54 +8491,7 @@ module.exports = function(stream, options) {
   return harker;
 }
 
-},{"wildemitter":3}],17:[function(require,module,exports){
-var support = require('webrtcsupport');
-
-
-function GainController(stream) {
-    this.support = support.webAudio && support.mediaStream;
-
-    // set our starting value
-    this.gain = 1;
-
-    if (this.support) {
-        var context = this.context = new support.AudioContext();
-        this.microphone = context.createMediaStreamSource(stream);
-        this.gainFilter = context.createGain();
-        this.destination = context.createMediaStreamDestination();
-        this.outputStream = this.destination.stream;
-        this.microphone.connect(this.gainFilter);
-        this.gainFilter.connect(this.destination);
-        stream.addTrack(this.outputStream.getAudioTracks()[0]);
-        stream.removeTrack(stream.getAudioTracks()[0]);
-    }
-    this.stream = stream;
-}
-
-// setting
-GainController.prototype.setGain = function (val) {
-    // check for support
-    if (!this.support) return;
-    this.gainFilter.gain.value = val;
-    this.gain = val;
-};
-
-GainController.prototype.getGain = function () {
-    return this.gain;
-};
-
-GainController.prototype.off = function () {
-    return this.setGain(0);
-};
-
-GainController.prototype.on = function () {
-    this.setGain(1);
-};
-
-
-module.exports = GainController;
-
-},{"webrtcsupport":4}],23:[function(require,module,exports){
+},{"wildemitter":5}],26:[function(require,module,exports){
 var parsers = require('./parsers');
 var idCounter = Math.random();
 
@@ -8602,6 +8576,11 @@ exports.toMediaJSON = function (media, session, creator) {
     }
 
     if (desc.descType == 'rtp') {
+        var bandwidth = parsers.findLine('b=', lines);
+        if (bandwidth) {
+            desc.bandwidth = parsers.bandwidth(bandwidth);
+        }
+
         var ssrc = parsers.findLine('a=ssrc:', lines);
         if (ssrc) {
             desc.ssrc = ssrc.substr(7).split(' ')[0];
@@ -8702,7 +8681,52 @@ exports.toCandidateJSON = function (line) {
     return candidate;
 };
 
-},{"./parsers":24}],24:[function(require,module,exports){
+},{"./parsers":28}],29:[function(require,module,exports){
+// created by @HenrikJoreteg
+var prefix  = '';
+var isChrome = false;
+var isFirefox = false;
+var needsPlugin = false;
+var ua = window.navigator.userAgent.toLowerCase();
+
+// basic sniffing
+if (ua.indexOf('firefox') !== -1) {
+    prefix = 'moz';
+    isFirefox = true;
+} else if (ua.indexOf('chrome') !== -1) {
+    prefix = 'webkit';
+    isChrome = true;
+} else {
+  // non webrtc browser that needs the Temasys plugin
+  prefix = 'other';
+  needsPlugin = true;
+}
+
+
+var PC = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
+var IceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+var SessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+var MediaStream = window.webkitMediaStream || window.MediaStream;
+var screenSharing = window.location.protocol === 'https:' && 
+  ((window.navigator.userAgent.match('Chrome') && parseInt(window.navigator.userAgent.match(/Chrome\/(.*) /)[1], 10) >= 26) ||
+   (window.navigator.userAgent.match('Firefox') && parseInt(window.navigator.userAgent.match(/Firefox\/(.*)/)[1], 10) >= 33));
+var AudioContext = window.webkitAudioContext || window.AudioContext;
+
+// export support flags and constructors.prototype && PC
+module.exports = {
+  support: !!PC,
+  dataChannel: isChrome || isFirefox || (PC && PC.prototype && PC.prototype.createDataChannel),
+  prefix: prefix,
+  webAudio: !!(AudioContext && AudioContext.prototype.createMediaStreamSource),
+  mediaStream: !!(MediaStream && MediaStream.prototype.removeTrack) || needsPlugin,
+  screenSharing: !!screenSharing,
+  AudioContext: AudioContext,
+  PeerConnection: PC,
+  SessionDescription: SessionDescription,
+  IceCandidate: IceCandidate
+};
+
+},{}],28:[function(require,module,exports){
 exports.lines = function (sdp) {
     return sdp.split('\r\n').filter(function (line) {
         return line.length > 0;
@@ -8955,7 +8979,15 @@ exports.groups = function (lines) {
     return parsed;
 };
 
-},{}],20:[function(require,module,exports){
+exports.bandwidth = function (line) {
+    var parts = line.substr(2).split(':');
+    var parsed = {};
+    parsed.type = parts.shift();
+    parsed.bandwidth = parts.shift();
+    return parsed;
+};
+
+},{}],25:[function(require,module,exports){
 // based on https://github.com/ESTOS/strophe.jingle/
 // adds wildemitter support
 var util = require('util');
@@ -8982,7 +9014,7 @@ function TraceablePeerConnection(config, constraints) {
 
     this.onicecandidate = null;
     this.peerconnection.onicecandidate = function (event) {
-        self.trace('onicecandidate', JSON.stringify(event.candidate, null, ' '));
+        //self.trace('onicecandidate', JSON.stringify(event.candidate, null, ' '));
         if (self.onicecandidate !== null) {
             self.onicecandidate(event);
         }
@@ -9117,7 +9149,7 @@ TraceablePeerConnection.prototype.close = function () {
 
 TraceablePeerConnection.prototype.createOffer = function (successCallback, failureCallback, constraints) {
     var self = this;
-    this.trace('createOffer', JSON.stringify(constraints, null, ' '));
+    //this.trace('createOffer', JSON.stringify(constraints, null, ' '));
     this.peerconnection.createOffer(
         function (offer) {
             self.trace('createOfferOnSuccess', dumpSDP(offer));
@@ -9133,7 +9165,7 @@ TraceablePeerConnection.prototype.createOffer = function (successCallback, failu
 
 TraceablePeerConnection.prototype.createAnswer = function (successCallback, failureCallback, constraints) {
     var self = this;
-    this.trace('createAnswer', JSON.stringify(constraints, null, ' '));
+    //this.trace('createAnswer', JSON.stringify(constraints, null, ' '));
     this.peerconnection.createAnswer(
         function (answer) {
             self.trace('createAnswerOnSuccess', dumpSDP(answer));
@@ -9175,6 +9207,6 @@ TraceablePeerConnection.prototype.getStats = function (callback, errback) {
 
 module.exports = TraceablePeerConnection;
 
-},{"util":8,"webrtcsupport":4,"wildemitter":3}]},{},[1])(1)
+},{"util":9,"webrtcsupport":29,"wildemitter":5}]},{},[1])(1)
 });
 ;
